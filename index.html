@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A simple product store powered by the Fake Store API.">
+    <title>Store API Integration</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <h1 id="main-title">Online Store</h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Status Messages -->
+        <div id="status-container">
+            <p id="loading-message" class="status-text">Loading products...</p>
+            <p id="error-message" class="status-text hidden">Failed to load data. Please try again later.</p>
+        </div>
+
+        <!-- Product Grid -->
+        <div id="product-grid" class="product-grid">
+            <!-- Products will be injected here dynamically -->
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
