@@ -15,12 +15,33 @@
 
 <body>
     <header>
-        <div class="container">
+        <div class="container header-content">
             <h1 id="main-title">Online Store</h1>
+            <button id="theme-toggle" class="theme-btn">🌙 Dark Mode</button>
         </div>
     </header>
 
     <main class="container">
+        <!-- Search and Filters -->
+        <div class="controls-container">
+            <input type="text" id="search-input" placeholder="Search products..." aria-label="Search products">
+            
+            <div class="filter-group">
+                <select id="category-filter" aria-label="Filter by category">
+                    <option value="all">All Categories</option>
+                </select>
+                
+                <select id="sort-select" aria-label="Sort products">
+                    <option value="default">Sort by Default</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                </select>
+
+                <button id="favorites-toggle" class="fav-btn">
+                    Show Favorites (<span id="fav-count">0</span>)
+                </button>
+            </div>
+        </div>
         <!-- Status Messages -->
         <div id="status-container">
             <p id="loading-message" class="status-text">Loading products...</p>
