@@ -1,79 +1,186 @@
-/**
- * Store API Integration
- * Script to fetch and display products from DummyJSON API.
- */
+const PRODUCTS_URL = 'https://dummyjson.com/products?limit=100';
+const CATEGORIES_URL = 'https://dummyjson.com/products/categories';
 
-// Define API endpoint
-const API_URL = 'https://dummyjson.com/products';
+// State Management
+let allProducts = [];
+let favorites = JSON.parse(localStorage.getItem('product_favorites')) || [];
+let showOnlyFavorites = false;
 
 // DOM Elements
 const productGrid = document.getElementById('product-grid');
 const loadingMessage = document.getElementById('loading-message');
 const errorMessage = document.getElementById('error-message');
+const searchInput = document.getElementById('search-input');
+const categoryFilter = document.getElementById('category-filter');
+const sortSelect = document.getElementById('sort-select');
+const themeToggle = document.getElementById('theme-toggle');
+const favoritesToggle = document.getElementById('favorites-toggle');
+const favCountSpan = document.getElementById('fav-count');
 
 /**
- * Fetch products from the API
+ * Initialize the application
  */
-async function fetchProducts() {
+async function init() {
+    setupTheme();
+    updateFavCount();
+    await fetchInitialData();
+    setupEventListeners();
+}
+
+/**
+ * Setup Light/Dark Mode
+ */
+function setupTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeToggle.textContent = '☀️ Light Mode';
+    }
+
+    themeToggle.addEventListener('click', () => {
+        const isDark = document.body.classList.toggle('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        themeToggle.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    });
+}
+
+/**
+ * Fetch products and categories from the API
+ */
+async function fetchInitialData() {
     try {
-        // 1. Handle loading state: ensure loading is visible, error is hidden
         loadingMessage.classList.remove('hidden');
         errorMessage.classList.add('hidden');
-        productGrid.innerHTML = '';
 
-        // 2. Make the API call
-        const response = await fetch(API_URL);
+        // Fetch products and categories in parallel
+        const [productsRes, categoriesRes] = await Promise.all([
+            fetch(PRODUCTS_URL),
+            fetch(CATEGORIES_URL)
+        ]);
 
-        // 3. Check if the response is successful
-        if (!response.ok) {
-            throw new Error('Failed to fetch data from API');
-        }
+        if (!productsRes.ok || !categoriesRes.ok) throw new Error('Failed to fetch data');
 
-        // 4. Parse JSON data
-        const data = await response.json();
+        const productsData = await productsRes.json();
+        const categoriesData = await categoriesRes.json();
 
-        // 5. Display the data (DummyJSON returns an object with a 'products' array)
-        if (data && Array.isArray(data.products)) {
-            displayProducts(data.products);
-        } else {
-            throw new Error('Invalid data format received from API');
-        }
+        allProducts = productsData.products;
+        
+        // Populate categories dropdown
+        categoriesData.slice(0, 15).forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.slug;
+            option.textContent = cat.name;
+            categoryFilter.appendChild(option);
+        });
+
+        renderProducts();
 
     } catch (error) {
-        // 6. Handle errors
-        console.error('Error fetching products:', error);
+        console.error('Error initializing store:', error);
         errorMessage.classList.remove('hidden');
     } finally {
-        // 7. Hide loading message regardless of outcome
         loadingMessage.classList.add('hidden');
     }
 }
 
 /**
- * Dynamically display products on the webpage
- * @param {Array} products - Array of product objects
+ * Setup Event Listeners for search, filter, and sort
  */
-function displayProducts(products) {
-    // Loop through each product and create a card
-    products.forEach(product => {
-        // Create card element
-        const productCard = document.createElement('div');
-        productCard.classList.add('product-card');
-
-        // Populate card with content (Image [thumbnail], Title, Price)
-        productCard.innerHTML = `
-            <div class="product-image-container">
-                <img src="${product.thumbnail}" alt="${product.title}" loading="lazy">
-            </div>
-            <h2 class="product-title">${product.title}</h2>
-            <p class="product-price">$${product.price ? product.price.toFixed(2) : '0.00'}</p>
-        `;
-
-        // Append card to the grid
-        productGrid.appendChild(productCard);
+function setupEventListeners() {
+    searchInput.addEventListener('input', renderProducts);
+    categoryFilter.addEventListener('change', renderProducts);
+    sortSelect.addEventListener('change', renderProducts);
+    
+    favoritesToggle.addEventListener('click', () => {
+        showOnlyFavorites = !showOnlyFavorites;
+        favoritesToggle.classList.toggle('active');
+        favoritesToggle.textContent = showOnlyFavorites ? 'Show All Products' : `Show Favorites (${favorites.length})`;
+        renderProducts();
     });
 }
 
-// Initial fetch when page loads
-window.addEventListener('DOMContentLoaded', fetchProducts);
+/**
+ * Render products with filtering and sorting
+ */
+function renderProducts() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const selectedCategory = categoryFilter.value;
+    const sortValue = sortSelect.value;
+
+    // 1. Filter products
+    let filteredProducts = allProducts
+        .filter(product => product.title.toLowerCase().includes(searchTerm))
+        .filter(product => selectedCategory === 'all' || product.category === selectedCategory)
+        .filter(product => !showOnlyFavorites || favorites.includes(product.id));
+
+    // 2. Sort products
+    if (sortValue === 'price-low') {
+        filteredProducts.sort((a, b) => a.price - b.price);
+    } else if (sortValue === 'price-high') {
+        filteredProducts.sort((a, b) => b.price - a.price);
+    }
+
+    // 3. Clear and Display
+    productGrid.innerHTML = '';
+    
+    if (filteredProducts.length === 0) {
+        productGrid.innerHTML = '<p class="status-text">No products found.</p>';
+        return;
+    }
+
+    // Use .map and join to create HTML string then inject once (Performance optimized)
+    const productCardsHTML = filteredProducts.map(product => {
+        const isFav = favorites.includes(product.id);
+        return `
+            <div class="product-card" data-id="${product.id}">
+                <div class="product-image-container">
+                    <img src="${product.thumbnail}" alt="${product.title}" loading="lazy">
+                </div>
+                <h2 class="product-title">${product.title}</h2>
+                <div class="product-footer">
+                    <p class="product-price">$${product.price.toFixed(2)}</p>
+                    <button class="favorite-icon ${isFav ? 'active' : ''}" onclick="toggleFavorite(${product.id})">
+                        ${isFav ? '❤️' : '🤍'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    productGrid.innerHTML = productCardsHTML;
+}
+
+/**
+ * Toggle favorite status of a product
+ * @param {number} productId 
+ */
+function toggleFavorite(productId) {
+    const index = favorites.indexOf(productId);
+    if (index > -1) {
+        favorites.splice(index, 1);
+    } else {
+        favorites.push(productId);
+    }
+    
+    localStorage.setItem('product_favorites', JSON.stringify(favorites));
+    updateFavCount();
+    renderProducts();
+}
+
+/**
+ * Update UI favorite counter
+ */
+function updateFavCount() {
+    favCountSpan.textContent = favorites.length;
+    if (!showOnlyFavorites) {
+        favoritesToggle.textContent = `Show Favorites (${favorites.length})`;
+    }
+}
+
+// Map toggleFavorite to window so it's accessible from inline onclick
+window.toggleFavorite = toggleFavorite;
+
+// Start the app
+window.addEventListener('DOMContentLoaded', init);
+
 
